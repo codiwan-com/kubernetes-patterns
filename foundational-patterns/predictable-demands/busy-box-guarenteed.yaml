@@ -1,0 +1,53 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ash-guarenteed-config-map
+  annotations:
+    source: "https://stackoverflow.com/a/4972220/2422530"
+data:
+  consume-ram.ash: |+
+    #!/bin/ash
+    set -xe
+    echo "begin allocating memory..."
+    for index in $(seq 100); do
+       value=$(seq -w -s '' $index $(($index + 100000)))
+       eval array$index=$value
+    done
+    echo "...end allocating memory"
+    echo "sleeping for $delay"
+    sleep infinity
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: busy-box-guarenteed
+spec:
+  replicas: 25
+  selector:
+    matchLabels:
+      component: busybox
+  template:
+    metadata:
+      labels:
+        component: busybox
+    spec:
+      containers:
+        - name: busybox
+          image: busybox
+          resources:
+            requests:
+              cpu: 0.03
+              memory: 100Mi
+            limits:
+              cpu: 0.03
+              memory: 100Mi
+          command: ["/bin/ash", "/etc/ash/script/consume-ram.ash"]
+          volumeMounts:
+            - name: script-volume
+              mountPath: /etc/ash/script
+
+      volumes:
+        - name: script-volume
+          configMap:
+            name: ash-guarenteed-config-map
